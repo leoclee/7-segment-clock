@@ -21,7 +21,7 @@
 CRGB ledsHour[NUM_LEDS_HOUR];
 CRGB ledsMinute[NUM_LEDS_MINUTE];
 CRGB fromColor;
-CRGB toColor;
+CRGB toColor = CRGB::Black;
 CRGB currentColor = CRGB::Black;
 uint8_t lerp = 0;
 bool fading = false;
@@ -388,7 +388,19 @@ void setup() {
   });
 
   server.on("/color", HTTP_GET, []() {
-    server.send(200, "text/plain", crgbToHex(toColor));
+    StaticJsonBuffer<200> jsonBuffer;
+    JsonObject& root = jsonBuffer.createObject();
+    root["hex"] = "#" + crgbToHex(toColor);
+    root["red"] = toColor.red;
+    root["green"] = toColor.green;
+    root["blue"] = toColor.blue;
+    //    CHSV hsv = rgb2hsv_approximate(toColor);
+    //    root["hue"] = hsv.hue;
+    //    root["saturation"] = hsv.saturation;
+    //    root["value"] = hsv.value;
+    String jsonString;
+    root.printTo(jsonString);
+    server.send(200, "application/json", jsonString);
   });
 
   server.begin();
@@ -481,7 +493,7 @@ void setup() {
   Serial.print(F("ESP Flash Size: "));
   Serial.println(ESP.getFlashChipRealSize());
 
-  // TODO set hostname, access point name
+  // TODO set hostname, access point name, SSDP, mDNS
 }
 
 int currentMinute = 0;
@@ -727,9 +739,9 @@ String crgbToHex(CRGB crgb) {
 }
 
 void setColor(int h, int s, int v) {
-  int hue = h * 255 / 360;
-  int sat = s * 255 / 100;
-  int val = v * 255 / 100;
+  int hue = (h % 360) * 255 / 360;
+  int sat = constrain(s, 0, 100) * 255 / 100;
+  int val = constrain(v, 0, 100) * 255 / 100;
 
   setColor(CHSV(hue, sat, val));
 }
@@ -760,7 +772,6 @@ void fadeToColor() {
   if (fading) {
     if (lerp < 255) {
       currentColor = blend(fromColor, toColor, ++lerp);
-      FastLED.show();
     } else {
       fading == false;
     }
