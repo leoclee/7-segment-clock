@@ -773,7 +773,7 @@ void fadeToColor() {
     if (lerp < 255) {
       currentColor = blend(fromColor, toColor, ++lerp);
     } else {
-      fading == false;
+      fading = false;
     }
   }
 }
