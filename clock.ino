@@ -26,6 +26,8 @@ CRGB currentColor = CRGB::Black;
 uint8_t lerp = 0;
 bool fading = false;
 
+int tzOffset = 0;
+
 ESP8266WebServer server(80);
 
 // openssl s_client -connect maps.googleapis.com:443 | openssl x509 -fingerprint -noout
@@ -60,7 +62,6 @@ String getIPlocation() { // Using ipstack.com to map public IP's location
   String URL = "http://api.ipstack.com/check?fields=latitude,longitude&access_key=" + String(ipstackApiKey); // no host or IP specified returns client's public IP info
   String payload;
   String loc;
-  digitalWrite(LED_BUILTIN, LOW);
   if (!http.begin(URL)) {
     Serial.println(F("getIPlocation: [HTTP] connect failed!"));
   } else {
@@ -71,10 +72,18 @@ String getIPlocation() { // Using ipstack.com to map public IP's location
         DynamicJsonBuffer jsonBuffer;
         JsonObject& root = jsonBuffer.parseObject(payload);
         if (root.success()) {
-          String lat = root["latitude"];
-          String lng = root["longitude"];
-          loc = lat + "," + lng;
-          Serial.println("getIPlocation: " + loc);
+          // https://ipstack.com/documentation#errors
+          JsonVariant error = root["error"];
+          if (error.success()) {
+            Serial.println("getIPlocation: [HTTP] error returned in response:");
+            error.prettyPrintTo(Serial);
+            Serial.println("");
+          } else {
+            String lat = root["latitude"];
+            String lng = root["longitude"];
+            loc = lat + "," + lng;
+            Serial.println("getIPlocation: " + loc);
+          }
         } else {
           Serial.println(F("getIPlocation: JSON parse failed!"));
           Serial.println(payload);
@@ -87,19 +96,16 @@ String getIPlocation() { // Using ipstack.com to map public IP's location
     }
   }
   http.end();
-  digitalWrite(LED_BUILTIN, HIGH);
   return loc;
 } // getIPlocation
 
 const char* mapsHost = "maps.googleapis.com";
 String getLocation(const String address, const char* key) { // using google maps API, return location for provided Postal Code
-  digitalWrite(LED_BUILTIN, LOW);
   String loc;
   WiFiClientSecure client;
   Serial.print("connecting to ");
   Serial.println(mapsHost);
   if (!client.connect(mapsHost, 443)) {
-    digitalWrite(LED_BUILTIN, HIGH);
     Serial.println("connection failed");
     return loc;
   }
@@ -135,15 +141,23 @@ String getLocation(const String address, const char* key) { // using google maps
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(line);
   if (root.success()) {
-    JsonObject& results = root["results"][0];
-    JsonObject& results_geometry = results["geometry"];
-    String address = results["formatted_address"];
-    String lat = results_geometry["location"]["lat"];
-    String lng = results_geometry["location"]["lng"];
-    loc = lat + "," + lng;
-    Serial.print(F("getLocation: "));
-    Serial.print(loc + " (");
-    Serial.println(address + ")");
+    // https://developers.google.com/maps/documentation/geocoding/intro#StatusCodes
+    String status = root["status"];
+    if (status == "OK") {
+      JsonObject& results = root["results"][0];
+      JsonObject& results_geometry = results["geometry"];
+      String address = results["formatted_address"];
+      String lat = results_geometry["location"]["lat"];
+      String lng = results_geometry["location"]["lng"];
+      loc = lat + "," + lng;
+      Serial.print(F("getLocation: "));
+      Serial.print(loc + " (");
+      Serial.println(address + ")");
+    } else {
+      Serial.println(F("getLocation: API request was unsuccessful:"));
+      root.prettyPrintTo(Serial);
+      Serial.println("");
+    }
   } else {
     Serial.println(F("getLocation: JSON parse failed!"));
     Serial.println(line);
@@ -156,7 +170,6 @@ String getLocation(const String address, const char* key) { // using google maps
                + UrlEncode(address) + "&key=" + String(key);
     String payload;
     String loc;
-    digitalWrite(LED_BUILTIN, LOW);
     if (!http.begin(URL, gMapsCrt)) {
     Serial.println(F("getLocation: [HTTP] connect failed!"));
     } else {
@@ -189,18 +202,19 @@ String getLocation(const String address, const char* key) { // using google maps
     }
     http.end();
   */
-  digitalWrite(LED_BUILTIN, HIGH);
   return loc;
 } // getLocation
 
 int getTimeZoneOffset(time_t now, String loc, const char* key) { // using google maps API, return TimeZone for provided timestamp
-  digitalWrite(LED_BUILTIN, LOW);
-  int offset = false;
+  if (loc == "") {
+    Serial.println("getTimeZoneOffset: 0 (no location)");
+    return 0;
+  }
+  int offset = tzOffset; // default to returning previous offset value, to handle temporary failures
   WiFiClientSecure client;
   Serial.print("connecting to ");
   Serial.println(mapsHost);
   if (!client.connect(mapsHost, 443)) {
-    digitalWrite(LED_BUILTIN, HIGH);
     Serial.println("connection failed");
     return offset;
   }
@@ -232,24 +246,29 @@ int getTimeZoneOffset(time_t now, String loc, const char* key) { // using google
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(line);
   if (root.success()) {
-    offset = int (root["rawOffset"]) + int (root["dstOffset"]);  // combine Offset and dstOffset
-    const char* tzname = root["timeZoneName"];
-    Serial.printf("getTimeZoneOffset: %s (%d)\r\n", tzname, offset);
+    // https://developers.google.com/maps/documentation/timezone/intro#Responses
+    String status = root["status"];
+    if (status == "OK") {
+      offset = int (root["rawOffset"]) + int (root["dstOffset"]);  // combine Offset and dstOffset
+      const char* tzname = root["timeZoneName"];
+      Serial.printf("getTimeZoneOffset: %s (%d)\r\n", tzname, offset);
+    } else {
+      Serial.println(F("getTimeZoneOffset: API request was unsuccessful:"));
+      root.prettyPrintTo(Serial);
+      Serial.println("");
+    }
   } else {
     Serial.println(F("getTimeZoneOffset: JSON parse failed!"));
     Serial.println(line);
   }
 
-  digitalWrite(LED_BUILTIN, HIGH);
   return offset;
 } // getTimeZoneOffset
 
-int tzOffset = 0;
 unsigned long ntpBegin;
 
 time_t getNtpTime () {
   Serial.print("Synchronize NTP ...");
-  digitalWrite(LED_BUILTIN, LOW);
   ntpBegin = millis();
   // using 0 for timezone because fractional time zones (such as Myanmar, which is UTC+06:30) are unsupported https://github.com/esp8266/Arduino/issues/2543
   // using 0 for dst because  https://github.com/esp8266/Arduino/issues/2505
@@ -260,7 +279,6 @@ time_t getNtpTime () {
     delay(100);
     Serial.print(".");
   }
-  digitalWrite(LED_BUILTIN, HIGH);
   Serial.println(" OK");
 
   return time(nullptr) + tzOffset;
@@ -402,7 +420,14 @@ void setup() {
     //end save
   }
 
-  location = (location == "") ? getIPlocation() : getLocation(location, googleApiKey);
+  if (location != "") {
+    // try to look up specified location first
+    location = getLocation(location, googleApiKey);
+  }
+  if (location == "") {
+    // if that didn't work or no location was specified, fall back to IP based geolocation
+    location = getIPlocation();
+  }
   time_t nowUtc = getNtpTime();
   tzOffset = getTimeZoneOffset(nowUtc, location, googleApiKey);
   setSyncProvider(getNtpTime);
@@ -435,8 +460,8 @@ void setup() {
   });
   ArduinoOTA.begin();
 
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  //digitalWrite(LED_BUILTIN, HIGH);
 
   Serial.println();
   Serial.print(F("Last reset reason: "));
