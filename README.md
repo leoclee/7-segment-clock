@@ -16,6 +16,7 @@
     - rename Time.h to \_Time.h (this is to avoid a [conflict with time.h](https://github.com/mikalhart/IridiumSBD/issues/16) on some OSs)
 1. Connect your D1 mini to the computer using a micro USB cable
 1. Under Tools, select "WeMos D1 R2 & mini" as the board
+1. Open [clock.ino](clock.ino)
 1. Sketch > Upload
 
 # Configuration
