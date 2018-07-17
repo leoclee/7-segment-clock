@@ -29,6 +29,7 @@
 
 # Runtime Configuration
 1. While connected to the same network as the D1 mini, open a browser and go to http://\<IP of D1 mini> (you can find the D1 mini's IP address using your router).
+![web UI](web.png)
 
 # TODO
 * runtime configuration of 12-hour vs 24-hour format
