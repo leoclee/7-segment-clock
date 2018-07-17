@@ -28,7 +28,7 @@
 1. Save (the D1 mini will restart and connect to your wifi)
 
 # Runtime Configuration
-1. While connected to the same network as the D1 mini, open a browser and go to http://<IP of D1 mini> (you can find the D1 mini's IP address using your router).
+1. While connected to the same network as the D1 mini, open a browser and go to http://\<IP of D1 mini> (you can find the D1 mini's IP address using your router).
 
 # TODO
 * runtime configuration of 12-hour vs 24-hour format
