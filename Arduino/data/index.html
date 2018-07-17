@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lange="en">
+<head>
+<meta charset="utf-8">
+<title>7 Segment Clock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css" integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt" crossorigin="anonymous">
+<style>
+input[type="range"] {
+	-webkit-appearance: none;
+	border-radius: .5em;
+}
+input[type=range]::-moz-range-track {
+	background: transparent;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<form>
+	<div class="form-group form-inline">
+		<label for="formControlRange" class="col-sm-1 col-form-label"><i class="fas fa-sun" aria-hidden title="Brightness"></i><span class="sr-only">Brightness:</span></label>
+		<div class="col-sm-11">
+			<input type="range" min="0" max="100" value="25" class="form-control-range" id="valrange" title="brightness">
+		</div>
+	</div>
+	<div class="form-group form-inline">
+		<label for="formControlRange" class="col-sm-1 col-form-label"><i class="fas fa-palette" aria-hidden title="Color"></i><span class="sr-only">Color:</span></label>
+		<div class="col-sm-11">
+			<input type="range" min="0" max="360" value="180" class="form-control-range" id="huerange" title="hue">
+			<input type="range" min="0" max="100" value="100" class="form-control-range mt-2" id="satrange" title="saturation">
+		</div>
+	</div>
+</form>
+</div>
+<script>
+// https://codeburst.io/throttling-and-debouncing-in-javascript-b01cad5c8edf
+const throttle = (func, limit) => {
+  let lastFunc
+  let lastRan
+  return function() {
+    const context = this
+    const args = arguments
+    if (!lastRan) {
+      func.apply(context, args)
+      lastRan = Date.now()
+    } else {
+      clearTimeout(lastFunc)
+      lastFunc = setTimeout(function() {
+        if ((Date.now() - lastRan) >= limit) {
+          func.apply(context, args)
+          lastRan = Date.now()
+        }
+      }, limit - (Date.now() - lastRan))
+    }
+  }
+}
+
+var huerange = document.getElementById("huerange");
+var satrange = document.getElementById("satrange");
+var valrange = document.getElementById("valrange");
+
+function updateBackground() {
+	var hue = huerange.value;
+	satrange.style.background = "linear-gradient(to right,#FFF,hsl(" + hue + ",100%,50%))";
+	var sat = satrange.value;
+	valrange.style.background = "linear-gradient(to right,#000,hsl(" + hue + ",100%," + (100 - sat/2) + "%))";
+}
+
+function changeColor() {
+	console.log("hue:" + huerange.value + ", sat:" + satrange.value + "%, val:" + valrange.value + "%");
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.open("PUT", "color?h=" + huerange.value + "&s=" + satrange.value + "&v=" + valrange.value);
+	xmlHttp.send();
+}
+
+huerange.addEventListener("input", updateBackground);
+satrange.addEventListener("input", updateBackground);
+var throttledChangeColor = throttle(changeColor, 500);
+huerange.addEventListener("input", throttledChangeColor);
+satrange.addEventListener("input", throttledChangeColor);
+valrange.addEventListener("input", throttledChangeColor);
+
+var huerangeBackground = "linear-gradient(to right";
+for (var i =0; i <= 360; i++) {
+	huerangeBackground += ",hsl(" + i + ",100%,50%)";
+}
+huerangeBackground += ")";
+huerange.style.background = huerangeBackground;
+
+updateBackground();
+
+(function loadConfig() {
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.onreadystatechange = function()
+	{
+		if(xmlHttp.readyState === XMLHttpRequest.DONE && xmlHttp.status === 200)
+		{
+			var json = xmlHttp.response;
+			console.log(json);
+			huerange.value = json.h;
+			satrange.value = json.s;
+			valrange.value = json.v;
+			updateBackground();
+		}
+	}
+	xmlHttp.open("GET", "color");
+	xmlHttp.responseType = "json";
+	xmlHttp.send();
+})();
+</script>
+</body>
+</html>
