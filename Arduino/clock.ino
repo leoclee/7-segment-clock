@@ -20,9 +20,9 @@
 // LED
 CRGB ledsHour[NUM_LEDS_HOUR];
 CRGB ledsMinute[NUM_LEDS_MINUTE];
-CRGB fromColor;
-CRGB toColor = CRGB::Black;
-CRGB currentColor = CRGB::Black;
+CHSV fromColor;
+CHSV toColor = CHSV(0,0,0);
+CHSV currentColor = CHSV(0,0,0);
 uint8_t lerp = 0;
 bool fading = false;
 
@@ -372,32 +372,21 @@ void setup() {
   server.serveStatic("/", SPIFFS, "/index.html");
 
   server.on("/color", HTTP_PUT, []() {
-    String rgbHex = server.arg("rgb");
-    if (rgbHex != "") {
-      setColor(rgbHex);
+    String h = server.arg("h");
+    String s = server.arg("s");
+    String v = server.arg("v");
+    if (h != "" && s != "" && v != "") {
+      setColor(h.toInt(), s.toInt(), v.toInt());
       server.send(204);
-    } else {
-      String h = server.arg("h");
-      String s = server.arg("s");
-      String v = server.arg("v");
-      if (h != "" && s != "" && v != "") {
-        setColor(h.toInt(), s.toInt(), v.toInt());
-        server.send(204);
-      }
     }
   });
 
   server.on("/color", HTTP_GET, []() {
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& root = jsonBuffer.createObject();
-    root["hex"] = "#" + crgbToHex(toColor);
-    root["red"] = toColor.red;
-    root["green"] = toColor.green;
-    root["blue"] = toColor.blue;
-    //    CHSV hsv = rgb2hsv_approximate(toColor);
-    //    root["hue"] = hsv.hue;
-    //    root["saturation"] = hsv.saturation;
-    //    root["value"] = hsv.value;
+    root["h"] = toColor.hue * 360 / 255;
+    root["s"] = toColor.saturation * 100 / 255;
+    root["v"] = toColor.value * 100 / 255;
     String jsonString;
     root.printTo(jsonString);
     server.send(200, "application/json", jsonString);
@@ -504,7 +493,7 @@ void loop() {
   ArduinoOTA.handle();
   if (timeStatus() != timeNotSet) {
     if (first) { // super dramatic fade in effect
-      setColor(CRGB(0, 64, 64));
+      setColor(CHSV(128, 255, 64));
       first = false;
     }
     if (minute() != currentMinute) {
@@ -727,17 +716,6 @@ void printDigits(int digits)
   Serial.print(digits);
 }
 
-String crgbToHex(CRGB crgb) {
-  // https://gist.github.com/hsiboy/dceca39a9df1c32cbd68
-  long HexRGB = ((long)crgb.r << 16) | ((long)crgb.g << 8 ) | (long)crgb.b; // get value and convert.
-  String hex = String(HexRGB, HEX);
-  // pad left with 0's
-  while (hex.length() != 6) {
-    hex = "0" + hex;
-  }
-  return hex;
-}
-
 void setColor(int h, int s, int v) {
   int hue = (h % 360) * 255 / 360;
   int sat = constrain(s, 0, 100) * 255 / 100;
@@ -746,26 +724,18 @@ void setColor(int h, int s, int v) {
   setColor(CHSV(hue, sat, val));
 }
 
-void setColor(String rgbHex) {
-  int r = strToHex(rgbHex.substring(0, 2));
-  int g = strToHex(rgbHex.substring(2, 4));
-  int b = strToHex(rgbHex.substring(4, 6));
-
-  setColor(CRGB(r, g, b));
-}
-
-void setColor(CRGB crgb) {
+void setColor(CHSV chsv) {
+  Serial.print("setting color to CHSV(");
+  Serial.print(chsv.h);
+  Serial.print(", ");
+  Serial.print(chsv.s);
+  Serial.print(", ");
+  Serial.print(chsv.v);
+  Serial.println(")");
   fromColor = currentColor;
-  toColor = crgb;
+  toColor = chsv;
   lerp = 0;
   fading = true;
-}
-
-int strToHex(String hex)
-{
-  char charBuf[3];
-  hex.toCharArray(charBuf, 3);
-  return (int) strtol(charBuf, 0, 16);
 }
 
 void fadeToColor() {
