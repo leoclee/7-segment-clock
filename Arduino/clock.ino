@@ -9,6 +9,7 @@
 #include <time.h>
 #include <TimeLib.h>                    // https://github.com/PaulStoffregen/Time
 #include <ArduinoJson.h>                // https://github.com/bblanchon/ArduinoJson/
+#include <ESP8266SSDP.h>
 #define FASTLED_INTERRUPT_RETRY_COUNT 0 // https://github.com/FastLED/FastLED/issues/367 decided against disabling FASTLED_ALLOW_INTERRUPTS due to WDT resets
 #include <FastLED.h>
 
@@ -21,8 +22,8 @@
 CRGB ledsHour[NUM_LEDS_HOUR];
 CRGB ledsMinute[NUM_LEDS_MINUTE];
 CHSV fromColor;
-CHSV toColor = CHSV(0,0,0);
-CHSV currentColor = CHSV(0,0,0);
+CHSV toColor = CHSV(0, 0, 0);
+CHSV currentColor = CHSV(0, 0, 0);
 uint8_t lerp = 0;
 bool fading = false;
 
@@ -392,8 +393,29 @@ void setup() {
     server.send(200, "application/json", jsonString);
   });
 
+  server.on("/description.xml", HTTP_GET, []() {
+    SSDP.schema(server.client());
+    // connection hangs for about 2 seconds otherwise
+    server.client().stop();
+  });
+
   server.begin();
   Serial.println("HTTP server started");
+
+  // SSDP
+  Serial.printf("Starting SSDP...\n");
+  SSDP.setSchemaURL("description.xml");
+  SSDP.setHTTPPort(80);
+  SSDP.setName("7 Segment LED Clock");
+  SSDP.setSerialNumber(String(ESP.getChipId()));
+  SSDP.setURL("");
+  SSDP.setModelName("7 Segment LED Clock");
+  SSDP.setModelNumber("LL-7S");
+  SSDP.setModelURL("https://github.com/leoclee/7-segment-clock");
+  SSDP.setManufacturer("Leonard Lee");
+  SSDP.setManufacturerURL("https://github.com/leoclee");
+  SSDP.setDeviceType("urn:schemas-upnp-org:device:7SegmentClock:1");
+  SSDP.begin();
 
   //read updated parameters
   strcpy(googleApiKey, customGoogleApiKey.getValue());
@@ -482,7 +504,7 @@ void setup() {
   Serial.print(F("ESP Flash Size: "));
   Serial.println(ESP.getFlashChipRealSize());
 
-  // TODO set hostname, access point name, SSDP, mDNS
+  // TODO set hostname, access point name, mDNS
 }
 
 int currentMinute = 0;
@@ -493,7 +515,7 @@ void loop() {
   ArduinoOTA.handle();
   if (timeStatus() != timeNotSet) {
     if (first) { // super dramatic fade in effect
-      setColor(CHSV(128, 255, 64));
+      setColor(CHSV(128, 255, 128));
       first = false;
     }
     if (minute() != currentMinute) {
