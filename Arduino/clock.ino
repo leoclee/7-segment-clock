@@ -407,7 +407,7 @@ void setup() {
   SSDP.setSchemaURL("description.xml");
   SSDP.setHTTPPort(80);
   SSDP.setName("7 Segment LED Clock");
-  SSDP.setSerialNumber(String(ESP.getChipId()));
+  SSDP.setSerialNumber(ESP.getChipId());
   SSDP.setURL("");
   SSDP.setModelName("7 Segment LED Clock");
   SSDP.setModelNumber("LL-7S");
