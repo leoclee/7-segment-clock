@@ -38,7 +38,7 @@ char ipstackApiKey[33] = "";
 
 String location = "";   // set to postal code to bypass geoIP lookup
 
-bool isTwelveHour = true;
+bool isTwelveHour = false;
 
 // TODO is this better than https://github.com/zenmanenergy/ESP8266-Arduino-Examples/blob/master/helloWorld_urlencoded/urlencode.ino ?
 String UrlEncode(const String url) {
@@ -383,11 +383,48 @@ void setup() {
   });
 
   server.on("/color", HTTP_GET, []() {
-    StaticJsonBuffer<200> jsonBuffer;
+    const size_t bufferSize = JSON_OBJECT_SIZE(3);
+    DynamicJsonBuffer jsonBuffer(bufferSize);
+
     JsonObject& root = jsonBuffer.createObject();
     root["h"] = toColor.hue * 360 / 255;
     root["s"] = toColor.saturation * 100 / 255;
     root["v"] = toColor.value * 100 / 255;
+
+    String jsonString;
+    root.printTo(jsonString);
+    server.send(200, "application/json", jsonString);
+  });
+
+  server.on("/clock", HTTP_GET, []() {
+    server.send(200, "text/plain", isTwelveHour ? "12" : "24");
+  });
+
+  server.on("/clock", HTTP_PUT, []() {
+    String body = server.arg("plain");
+    if (body == "12") {
+      isTwelveHour = true;
+      server.send(204);
+    } else if (body == "24") {
+      isTwelveHour = false;
+      server.send(204);
+    } else {
+      server.send(400);
+    }
+  });
+
+  server.on("/config", HTTP_GET, []() {
+    const size_t bufferSize = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3);
+    DynamicJsonBuffer jsonBuffer(bufferSize);
+
+    JsonObject& root = jsonBuffer.createObject();
+
+    JsonObject& color = root.createNestedObject("color");
+    color["h"] = toColor.hue * 360 / 255;
+    color["s"] = toColor.saturation * 100 / 255;
+    color["v"] = toColor.value * 100 / 255;
+    root["clock"] = isTwelveHour ? 12 : 24;
+
     String jsonString;
     root.printTo(jsonString);
     server.send(200, "application/json", jsonString);
