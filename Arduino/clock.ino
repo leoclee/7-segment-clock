@@ -494,6 +494,7 @@ void setup() {
   setSyncInterval(3600);
 
   // OTA
+  ArduinoOTA.setHostname("7sclock"); // Hostname defaults to esp8266-[ChipID]
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH)
@@ -541,7 +542,7 @@ void setup() {
   Serial.print(F("ESP Flash Size: "));
   Serial.println(ESP.getFlashChipRealSize());
 
-  // TODO set hostname, access point name, mDNS
+  // TODO access point name
 }
 
 int currentMinute = 0;
