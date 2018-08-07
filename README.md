@@ -7,7 +7,7 @@
 1. Open Boards Manager (under Tools), search for and install the latest version of esp8266.
 1. Install libraries using the Library Manager (Sketch > Include Library > Manage Libraries):
     - [WiFiManager](https://github.com/tzapu/WiFiManager)
-    - [ArduinoJSON](https://arduinojson.org)
+    - [ArduinoJSON](https://arduinojson.org) (version 5.x, not 6.x!)
     - [FastLED](https://github.com/FastLED/FastLED)
 1. Install [PaulStoffregen's Time library](https://github.com/PaulStoffregen/Time):
     - Download the library as a zip (master branch) https://github.com/PaulStoffregen/Time/archive/master.zip
