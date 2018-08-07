@@ -557,8 +557,10 @@ void loop() {
       first = false;
     }
     if (minute() != currentMinute) {
-      // check for new offset every 2AM
-      if (hour() == 2 && minute() == 0) {
+      // check for new offset every hour between midnight and 4AM for DST change
+      // see: https://www.timeanddate.com/time/dst/statistics.html#dstuse
+      // see: https://en.wikipedia.org/wiki/Daylight_saving_time#Procedure
+      if (minute() == 0 && hour() <= 4) {
         int newTzOffset = getTimeZoneOffset(now() - tzOffset, location, googleApiKey);
         if (newTzOffset != tzOffset) {
           tzOffset = newTzOffset;
