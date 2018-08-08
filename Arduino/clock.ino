@@ -369,6 +369,9 @@ void setup() {
     ESP.reset();
     delay(5000);
   }
+  
+  // prime the dramatic fade in color by matching the black's hue and saturation
+  currentColor = CHSV(128, 255, 0);
 
   server.serveStatic("/", SPIFFS, "/index.html");
 
