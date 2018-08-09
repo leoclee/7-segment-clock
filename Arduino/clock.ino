@@ -365,7 +365,7 @@ void setup() {
     if (lat != overrideLatitude || lng != overrideLongitude) {
       overrideLatitude = lat;
       overrideLongitude = lng;
-      refreshTime();
+      refreshTimezoneOffset();
       saveConfig();
     }
   });
@@ -497,7 +497,7 @@ void loop() {
       // see: https://www.timeanddate.com/time/dst/statistics.html#dstuse
       // see: https://en.wikipedia.org/wiki/Daylight_saving_time#Procedure
       if (minute() == 0 && hour() <= 4) {
-        refreshTime();
+        refreshTimezoneOffset();
       }
       printTime();
     }
@@ -508,7 +508,7 @@ void loop() {
   fadeToColor();
 }
 
-void refreshTime() {
+void refreshTimezoneOffset() {
   // handle the scenario where override location is loaded from json, but then removed during runtime--we will need to do an ip location lookup
   if ((overrideLatitude == "" || overrideLongitude == "") && (ipLatitude == "" || ipLongitude == "")) {
     // if no override location specified, attempt to look up using IP based geolocation
@@ -517,7 +517,7 @@ void refreshTime() {
   int newTzOffset = getTimeZoneOffset(now() - tzOffset, (overrideLatitude != "") ? overrideLatitude : ipLatitude, (overrideLongitude != "") ? overrideLongitude : ipLongitude, googleApiKey);
   if (newTzOffset != tzOffset) {
     tzOffset = newTzOffset;
-    setTime(getNtpTime());
+    setTime(time(nullptr) + tzOffset);
   }
 }
 
