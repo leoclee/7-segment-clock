@@ -15,6 +15,38 @@ input[type="range"] {
 input[type=range]::-moz-range-track {
 	background: transparent;
 }
+#map {
+	height:480px;
+}
+/* inspired by https://stackoverflow.com/a/36723757 */
+.centerMarker {
+	position: absolute;
+	background: url(http://maps.gstatic.com/mapfiles/markers2/marker.png) no-repeat;
+	top: 50%;
+	left: 50%;
+	z-index: 1;
+	margin-left: -10px;
+	margin-top: -34px;
+	height: 34px;
+	width: 20px;
+	pointer-events: none;
+}
+/* inspired by https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete */
+#card {
+	margin: 10px 10px 0 0;
+	border-radius: 2px 0 0 2px;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	outline: none;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+	background-color: #fff;
+	font-family: Roboto;
+}
+#controls {
+	display: inline-block;
+	padding: 5px 11px;
+	font-size: 25px;
+}
 </style>
 </head>
 <body>
@@ -46,12 +78,79 @@ input[type=range]::-moz-range-track {
 			</div>
 		</div>
 	</div>
+	<div class="form-group form-inline">
+		<label class="col-sm-1 col-form-label"><i class="fas fa-globe-americas" aria-hidden title="Location"></i><span class="sr-only">Location:</span></label>
+		<div class="col-sm-11">
+			<div class="btn-group btn-group-toggle d-flex" data-toggle="buttons">
+			  <label class="btn btn-primary w-100">
+				<input type="radio" name="location" id="auto" autocomplete="off" value="auto"><i class="fas fa-magic"></i></input>
+			  </label>
+			  <label class="btn btn-primary w-100">
+				<input type="radio" name="location" id="pick" autocomplete="off" value="pick"><i class="fas fa-map-marker-alt"></i></input>
+			  </label>
+			</div>
+		</div>
+		<div class="col-sm-11 offset-sm-1">
+			<div id="map" class="collapse"></div>
+		</div>
+	</div>
 </form>
+</div>
+<div class="d-none">
+	<div id="card">
+		<div id="controls">
+			<span id="latlng"></span> <button type="button" class="btn btn-success" id="locationButton"><i class="fas fa-check"></i></button>
+		</div>
+	</div>
 </div>
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 <script>
+var map;
+var initialLat;
+var initialLng;
+function initMap() {
+	map = new google.maps.Map(document.getElementById('map'), {
+		center: {lat: initialLat, lng: initialLng}, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false});
+	centerChangedHandler();
+	var card = document.getElementById('card');
+	map.controls[google.maps.ControlPosition.TOP_RIGHT].push(card);
+	google.maps.event.addListener(map,'center_changed', centerChangedHandler);
+
+	// from https://stackoverflow.com/a/36723757
+	$('<div/>').addClass('centerMarker').appendTo(map.getDiv());
+
+	$('#locationButton').click(function() {
+		var lat = map.getCenter().lat().toFixed(4);
+		var lng = map.getCenter().lng().toFixed(4);
+		updateOverrideLocation(lat, lng);
+	});
+
+	$('input[type=radio][name=location]').change(function() {
+		$('#map').collapse(this.value === 'pick' ? 'show' : 'hide');
+		if (this.value === 'auto') {
+			updateOverrideLocation('','');
+		}
+	});
+}
+function centerChangedHandler() {
+	document.getElementById('latlng').innerText = map.getCenter().lat().toFixed(4) + ", " + map.getCenter().lng().toFixed(4);
+}
+function updateOverrideLocation(lat, lng) {
+	console.log("updating override location to '" + lat + "," + lng + "'");
+	$('#locationButton')[0].disabled = true;
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.open("PUT", "location?overrideLatitude=" + lat + "&overrideLongitude=" + lng);
+	xmlHttp.onreadystatechange = function()
+	{
+		if(xmlHttp.readyState === XMLHttpRequest.DONE) {
+			$('#locationButton')[0].disabled = false;
+		}
+	};
+	xmlHttp.send();
+}
+
 // https://codeburst.io/throttling-and-debouncing-in-javascript-b01cad5c8edf
 const throttle = (func, limit) => {
   let lastFunc
@@ -139,6 +238,32 @@ $('input[type=radio][name=clock]').change(function() {
 			satrange.value = color.s;
 			valrange.value = color.v;
 			updateBackground();
+
+			// location
+			if (json.location.overrideLatitude != "" && json.location.overrideLongitude != "") {
+				$('#pick').prop("checked", true).closest('.btn').addClass('active');
+				$('#auto').closest('.btn').removeClass('active');
+				$('#map').collapse('show');
+				initialLat = parseFloat(json.location.overrideLatitude);
+				initialLng = parseFloat(json.location.overrideLongitude);
+			} else {
+				$('#auto').prop("checked", true).closest('.btn').addClass('active');
+				$('#pick').closest('.btn').removeClass('active');
+				$('#map').collapse('hide');
+				initialLat = parseFloat(json.location.ipLatitude);
+				initialLng = parseFloat(json.location.ipLongitude);
+			}
+			if (isNaN(initialLat) && isNan(initialLng)) {
+				// 	Reykjavik, because always UTC
+				initialLat = 64.1265;
+				initialLng = -21.8174;
+			}
+
+			// Google Maps script tag
+			var script = document.createElement('script');
+			script.type = 'text/javascript';
+			script.src = "https://maps.googleapis.com/maps/api/js?key=" + json.googleApiKey + "&callback=initMap";
+			document.body.appendChild(script);
 		}
 	}
 	xmlHttp.open("GET", "config");

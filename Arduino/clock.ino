@@ -22,7 +22,7 @@
 CRGB ledsHour[NUM_LEDS_HOUR];
 CRGB ledsMinute[NUM_LEDS_MINUTE];
 CHSV fromColor;
-CHSV toColor = CHSV(0, 0, 0);
+CHSV toColor = CHSV(128, 255, 128);
 CHSV currentColor = CHSV(0, 0, 0);
 uint8_t lerp = 0;
 bool fading = false;
@@ -36,7 +36,10 @@ ESP8266WebServer server(80);
 char googleApiKey[40] = "";
 char ipstackApiKey[33] = "";
 
-String location = "";   // set to postal code to bypass geoIP lookup
+String ipLatitude = "";
+String ipLongitude = "";
+String overrideLatitude = "";
+String overrideLongitude = "";
 
 bool isTwelveHour = false;
 
@@ -58,11 +61,10 @@ String UrlEncode(const String url) {
   return e;
 }
 
-String getIPlocation() { // Using ipstack.com to map public IP's location
+void getIPlocation() { // Using ipstack.com to map public IP's location
   HTTPClient http;
   String URL = "http://api.ipstack.com/check?fields=latitude,longitude&access_key=" + String(ipstackApiKey); // no host or IP specified returns client's public IP info
   String payload;
-  String loc;
   if (!http.begin(URL)) {
     Serial.println(F("getIPlocation: [HTTP] connect failed!"));
   } else {
@@ -80,10 +82,9 @@ String getIPlocation() { // Using ipstack.com to map public IP's location
             error.prettyPrintTo(Serial);
             Serial.println("");
           } else {
-            String lat = root["latitude"];
-            String lng = root["longitude"];
-            loc = lat + "," + lng;
-            Serial.println("getIPlocation: " + loc);
+            ipLatitude = root["latitude"].as<String>();
+            ipLongitude = root["longitude"].as<String>();
+            Serial.println("getIPlocation: " + ipLatitude + "," + ipLongitude);
           }
         } else {
           Serial.println(F("getIPlocation: JSON parse failed!"));
@@ -97,117 +98,11 @@ String getIPlocation() { // Using ipstack.com to map public IP's location
     }
   }
   http.end();
-  return loc;
 } // getIPlocation
 
 const char* mapsHost = "maps.googleapis.com";
-String getLocation(const String address, const char* key) { // using google maps API, return location for provided Postal Code
-  String loc;
-  WiFiClientSecure client;
-  Serial.print("connecting to ");
-  Serial.println(mapsHost);
-  if (!client.connect(mapsHost, 443)) {
-    Serial.println("connection failed");
-    return loc;
-  }
-
-  String url = "/maps/api/geocode/json?address="
-               + UrlEncode(address) + "&key=" + String(key);
-  Serial.print("requesting URL: ");
-  Serial.println(url);
-
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + mapsHost + "\r\n" +
-               "Connection: close\r\n\r\n");
-
-  Serial.println("request sent");
-  while (client.connected()) {
-    String line = client.readStringUntil('\n');
-    if (line == "\r") {
-      Serial.println("headers received");
-      break;
-    }
-  }
-  String line = "";
-  while (client.available()) {
-    line += client.readStringUntil('\n');
-  }
-  //String line = client.readStringUntil('}') + "}";
-  Serial.println("reply was:");
-  Serial.println("==========");
-  Serial.println(line);
-  Serial.println("==========");
-  Serial.println("closing connection");
-
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& root = jsonBuffer.parseObject(line);
-  if (root.success()) {
-    // https://developers.google.com/maps/documentation/geocoding/intro#StatusCodes
-    String status = root["status"];
-    if (status == "OK") {
-      JsonObject& results = root["results"][0];
-      JsonObject& results_geometry = results["geometry"];
-      String address = results["formatted_address"];
-      String lat = results_geometry["location"]["lat"];
-      String lng = results_geometry["location"]["lng"];
-      loc = lat + "," + lng;
-      Serial.print(F("getLocation: "));
-      Serial.print(loc + " (");
-      Serial.println(address + ")");
-    } else {
-      Serial.println(F("getLocation: API request was unsuccessful:"));
-      root.prettyPrintTo(Serial);
-      Serial.println("");
-    }
-  } else {
-    Serial.println(F("getLocation: JSON parse failed!"));
-    Serial.println(line);
-  }
-
-  // wait for https://github.com/esp8266/Arduino/pull/3700 to be able to use HTTPClient again
-  /*
-    HTTPClient http;
-    String URL = "https://maps.googleapis.com/maps/api/geocode/json?address="
-               + UrlEncode(address) + "&key=" + String(key);
-    String payload;
-    String loc;
-    if (!http.begin(URL, gMapsCrt)) {
-    Serial.println(F("getLocation: [HTTP] connect failed!"));
-    } else {
-    int stat = http.GET();
-    if (stat > 0) {
-      if (stat == HTTP_CODE_OK) {
-        payload = http.getString();
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject& root = jsonBuffer.parseObject(payload);
-        if (root.success()) {
-          JsonObject& results = root["results"][0];
-          JsonObject& results_geometry = results["geometry"];
-          String address = results["formatted_address"];
-          String lat = results_geometry["location"]["lat"];
-          String lng = results_geometry["location"]["lng"];
-          loc = lat + "," + lng;
-          Serial.print(F("getLocation: "));
-          Serial.print(loc + " (");
-          Serial.println(address + ")");
-        } else {
-          Serial.println(F("getLocation: JSON parse failed!"));
-          Serial.println(payload);
-        }
-      } else {
-        Serial.printf("getLocation: [HTTP] GET reply %d\r\n", stat);
-      }
-    } else {
-      Serial.printf("getLocation: [HTTP] GET failed: %s\r\n", http.errorToString(stat).c_str());
-    }
-    }
-    http.end();
-  */
-  return loc;
-} // getLocation
-
-int getTimeZoneOffset(time_t now, String loc, const char* key) { // using google maps API, return TimeZone for provided timestamp
-  if (loc == "") {
+int getTimeZoneOffset(time_t now, String latitude, String longitude, const char* key) { // using google maps API, return TimeZone for provided timestamp
+  if (latitude == "" || longitude == "") {
     Serial.println("getTimeZoneOffset: 0 (no location)");
     return 0;
   }
@@ -221,7 +116,7 @@ int getTimeZoneOffset(time_t now, String loc, const char* key) { // using google
   }
 
   String url = "/maps/api/timezone/json?location="
-               + UrlEncode(loc) + "&timestamp=" + String(now) + "&key=" + String(key);
+               + UrlEncode(latitude + "," + longitude) + "&timestamp=" + String(now) + "&key=" + String(key);
   Serial.print("requesting URL: ");
   Serial.println(url);
 
@@ -328,12 +223,33 @@ void setup() {
         if (json.success()) {
           Serial.println("\nparsed json");
 
-          // json values could be null! https://arduinojson.org/faq/why-does-my-device-crash-or-reboot/#example-with-strcpy
+          // API keys
+          // json values could be null! https://arduinojson.org/v5/faq/why-does-my-device-crash-or-reboot/#example-with-strcpy
           strlcpy(googleApiKey, json["googleApiKey"] | googleApiKey, 40);
           strlcpy(ipstackApiKey, json["ipstackApiKey"] | ipstackApiKey, 33);
 
-          Serial.println(googleApiKey);
-          Serial.println(ipstackApiKey);
+          // override location
+          const char* lat = json["location"]["overrideLatitude"];
+          const char* lng = json["location"]["overrideLongitude"];
+          if (lat && lng) {
+            overrideLatitude = String(lat);
+            overrideLongitude = String(lng);
+          }
+
+          // color
+          JsonVariant hue = json["color"]["h"];
+          JsonVariant sat = json["color"]["s"];
+          JsonVariant val = json["color"]["v"];
+          if (hue.success() && sat.success() && val.success()) {
+            // store initial color in toColor... hopefully this is OK
+            toColor = CHSV((hue.as<int>() % 360) * 255 / 360, constrain(sat.as<int>(), 0, 100) * 255 / 100, constrain(val.as<int>(), 0, 100) * 255 / 100);
+          }
+
+          // clock
+          JsonVariant clk = json["clock"];
+          if (clk.success() && clk.is<int>()) {
+            isTwelveHour = clk.as<int>() == 12;
+          }
         } else {
           Serial.println("failed to load json config");
         }
@@ -369,9 +285,18 @@ void setup() {
     ESP.reset();
     delay(5000);
   }
-  
-  // prime the dramatic fade in color by matching the black's hue and saturation
-  currentColor = CHSV(128, 255, 0);
+
+  // match the fade in color's hue and saturation
+  currentColor = CHSV(toColor.h, toColor.s, 0);
+
+  if (overrideLatitude == "" || overrideLongitude == "") {
+    // if no override location specified, attempt to look up using IP based geolocation
+    getIPlocation();
+  }
+  time_t nowUtc = getNtpTime();
+  tzOffset = getTimeZoneOffset(nowUtc, (overrideLatitude != "") ? overrideLatitude : ipLatitude, (overrideLongitude != "") ? overrideLongitude : ipLongitude, googleApiKey);
+  setSyncProvider(getNtpTime);
+  setSyncInterval(3600);
 
   server.serveStatic("/", SPIFFS, "/index.html");
 
@@ -386,7 +311,7 @@ void setup() {
   });
 
   server.on("/color", HTTP_GET, []() {
-    const size_t bufferSize = JSON_OBJECT_SIZE(3);
+    const size_t bufferSize = JSON_OBJECT_SIZE(3); // https://arduinojson.org/v5/assistant/
     DynamicJsonBuffer jsonBuffer(bufferSize);
 
     JsonObject& root = jsonBuffer.createObject();
@@ -416,8 +341,37 @@ void setup() {
     }
   });
 
+  server.on("/location", HTTP_GET, []() {
+    const size_t bufferSize = JSON_OBJECT_SIZE(4); // https://arduinojson.org/v5/assistant/
+    DynamicJsonBuffer jsonBuffer(bufferSize);
+
+    JsonObject& root = jsonBuffer.createObject();
+
+    root["ipLatitude"] = ipLatitude;
+    root["ipLongitude"] = ipLongitude;
+    root["overrideLatitude"] = overrideLatitude;
+    root["overrideLongitude"] = overrideLongitude;
+
+    String jsonString;
+    root.printTo(jsonString);
+    server.send(200, "application/json", jsonString);
+  });
+
+  server.on("/location", HTTP_PUT, []() {
+    String lat = server.arg("overrideLatitude");
+    String lng = server.arg("overrideLongitude");
+    // TODO some kind of validation
+    server.send(204);
+    if (lat != overrideLatitude || lng != overrideLongitude) {
+      overrideLatitude = lat;
+      overrideLongitude = lng;
+      refreshTime();
+      saveConfig();
+    }
+  });
+
   server.on("/config", HTTP_GET, []() {
-    const size_t bufferSize = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3);
+    const size_t bufferSize = JSON_OBJECT_SIZE(3) + 2*JSON_OBJECT_SIZE(4); // https://arduinojson.org/v5/assistant/
     DynamicJsonBuffer jsonBuffer(bufferSize);
 
     JsonObject& root = jsonBuffer.createObject();
@@ -427,6 +381,12 @@ void setup() {
     color["s"] = toColor.saturation * 100 / 255;
     color["v"] = toColor.value * 100 / 255;
     root["clock"] = isTwelveHour ? 12 : 24;
+    JsonObject& location = root.createNestedObject("location");
+    location["ipLatitude"] = ipLatitude;
+    location["ipLongitude"] = ipLongitude;
+    location["overrideLatitude"] = overrideLatitude;
+    location["overrideLongitude"] = overrideLongitude;
+    root["googleApiKey"] = googleApiKey;
 
     String jsonString;
     root.printTo(jsonString);
@@ -466,35 +426,8 @@ void setup() {
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-    Serial.println("saving config");
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& json = jsonBuffer.createObject();
-    json["googleApiKey"] = googleApiKey;
-    json["ipstackApiKey"] = ipstackApiKey;
-
-    File configFile = SPIFFS.open("/config.json", "w");
-    if (!configFile) {
-      Serial.println("failed to open config file for writing");
-    }
-
-    json.printTo(Serial);
-    json.printTo(configFile);
-    configFile.close();
-    //end save
+    saveConfig();
   }
-
-  if (location != "") {
-    // try to look up specified location first
-    location = getLocation(location, googleApiKey);
-  }
-  if (location == "") {
-    // if that didn't work or no location was specified, fall back to IP based geolocation
-    location = getIPlocation();
-  }
-  time_t nowUtc = getNtpTime();
-  tzOffset = getTimeZoneOffset(nowUtc, location, googleApiKey);
-  setSyncProvider(getNtpTime);
-  setSyncInterval(3600);
 
   // OTA
   ArduinoOTA.setHostname("7sclock"); // Hostname defaults to esp8266-[ChipID]
@@ -556,7 +489,7 @@ void loop() {
   ArduinoOTA.handle();
   if (timeStatus() != timeNotSet) {
     if (first) { // super dramatic fade in effect
-      setColor(CHSV(128, 255, 128));
+      setColor(toColor);
       first = false;
     }
     if (minute() != currentMinute) {
@@ -564,11 +497,7 @@ void loop() {
       // see: https://www.timeanddate.com/time/dst/statistics.html#dstuse
       // see: https://en.wikipedia.org/wiki/Daylight_saving_time#Procedure
       if (minute() == 0 && hour() <= 4) {
-        int newTzOffset = getTimeZoneOffset(now() - tzOffset, location, googleApiKey);
-        if (newTzOffset != tzOffset) {
-          tzOffset = newTzOffset;
-          setTime(getNtpTime());
-        }
+        refreshTime();
       }
       printTime();
     }
@@ -577,6 +506,44 @@ void loop() {
     updateLeds();
   }
   fadeToColor();
+}
+
+void refreshTime() {
+  // handle the scenario where override location is loaded from json, but then removed during runtime--we will need to do an ip location lookup
+  if ((overrideLatitude == "" || overrideLongitude == "") && (ipLatitude == "" || ipLongitude == "")) {
+    // if no override location specified, attempt to look up using IP based geolocation
+    getIPlocation();
+  }
+  int newTzOffset = getTimeZoneOffset(now() - tzOffset, (overrideLatitude != "") ? overrideLatitude : ipLatitude, (overrideLongitude != "") ? overrideLongitude : ipLongitude, googleApiKey);
+  if (newTzOffset != tzOffset) {
+    tzOffset = newTzOffset;
+    setTime(getNtpTime());
+  }
+}
+
+void saveConfig() {
+  Serial.println("saving config");
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json = jsonBuffer.createObject();
+  json["googleApiKey"] = googleApiKey;
+  json["ipstackApiKey"] = ipstackApiKey;
+  JsonObject& location = json.createNestedObject("location");
+  location["overrideLatitude"] = overrideLatitude;
+  location["overrideLongitude"] = overrideLongitude;
+  JsonObject& color = json.createNestedObject("color");
+  color["h"] = toColor.hue * 360 / 255;
+  color["s"] = toColor.saturation * 100 / 255;
+  color["v"] = toColor.value * 100 / 255;
+  json["clock"] = isTwelveHour ? 12 : 24;
+
+  File configFile = SPIFFS.open("/config.json", "w");
+  if (!configFile) {
+    Serial.println("failed to open config file for writing");
+  }
+
+  json.printTo(Serial);
+  json.printTo(configFile);
+  configFile.close();
 }
 
 void updateLeds() {
