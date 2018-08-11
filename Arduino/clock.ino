@@ -24,6 +24,10 @@ CRGB ledsMinute[NUM_LEDS_MINUTE];
 CHSV fromColor;
 CHSV toColor = CHSV(128, 255, 128);
 CHSV currentColor = CHSV(0, 0, 0);
+CHSV savedColor;
+unsigned long lastColorChangeTime = 0;
+unsigned long colorSaveInterval = 15000; // number of milliseconds to wait for a color change to trigger a save
+
 uint8_t lerp = 0;
 bool fading = false;
 
@@ -244,6 +248,7 @@ void setup() {
             // store initial color in toColor... hopefully this is OK
             toColor = CHSV((hue.as<int>() % 360) * 255 / 360, constrain(sat.as<int>(), 0, 100) * 255 / 100, constrain(val.as<int>(), 0, 100) * 255 / 100);
           }
+          savedColor = toColor;
 
           // clock
           JsonVariant clk = json["clock"];
@@ -330,12 +335,21 @@ void setup() {
 
   server.on("/clock", HTTP_PUT, []() {
     String body = server.arg("plain");
+    bool newIsTwelveHour;
     if (body == "12") {
-      isTwelveHour = true;
+      newIsTwelveHour = true;
       server.send(204);
+      if (isTwelveHour != newIsTwelveHour) {
+        isTwelveHour = newIsTwelveHour;
+        saveConfig();
+      }
     } else if (body == "24") {
-      isTwelveHour = false;
+      newIsTwelveHour = false;
       server.send(204);
+      if (isTwelveHour != newIsTwelveHour) {
+        isTwelveHour = newIsTwelveHour;
+        saveConfig();
+      }
     } else {
       server.send(400);
     }
@@ -506,6 +520,15 @@ void loop() {
     updateLeds();
   }
   fadeToColor();
+  saveColorChange();
+}
+
+// throttle color change induced saving to avoid unnecessary write/erase cycles
+void saveColorChange() {
+  if (toColor != savedColor && ((millis() - lastColorChangeTime) > colorSaveInterval)) {
+    Serial.println("config save triggered by color change");
+    saveConfig();
+  }
 }
 
 void refreshTimezoneOffset() {
@@ -544,6 +567,8 @@ void saveConfig() {
   json.printTo(Serial);
   json.printTo(configFile);
   configFile.close();
+
+  savedColor = toColor;
 }
 
 void updateLeds() {
@@ -757,6 +782,7 @@ void setColor(int h, int s, int v) {
 }
 
 void setColor(CHSV chsv) {
+  lastColorChangeTime = millis();
   Serial.print("setting color to CHSV(");
   Serial.print(chsv.h);
   Serial.print(", ");
