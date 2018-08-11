@@ -112,7 +112,7 @@ var initialLat;
 var initialLng;
 function initMap() {
 	map = new google.maps.Map(document.getElementById('map'), {
-		center: {lat: initialLat, lng: initialLng}, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false});
+		center: {lat: initialLat, lng: initialLng}, zoom: 5, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false});
 	centerChangedHandler();
 	var card = document.getElementById('card');
 	map.controls[google.maps.ControlPosition.TOP_RIGHT].push(card);
