@@ -17,9 +17,9 @@
 1. Install the [Arduino ESP8266 filesystem uploader plugin](https://github.com/esp8266/arduino-esp8266fs-plugin) (requires restart of IDE)
 1. Connect your D1 mini to the computer using a micro USB cable
 1. Under Tools, select "LOLIN(WEMOS) D1 R2 & mini" as the board
-1. Open [clock.ino](clock.ino)
+1. Open [clock.ino](Arduino/clock.ino)
 1. Sketch > Upload
-1. Upload the sketch data files (the data directory in the sketch folder) using Tools > ESP8266 Sketch Data Upload.
+1. Upload the sketch data files (the [data](Arduino/data) directory in the sketch folder) using Tools > ESP8266 Sketch Data Upload.
 
 # Initial Configuration
 1. When the sketch runs for the first time, the D1 mini will try to connect to your wifi and fail (because it doesn't have any previously saved wifi credentials). This will cause it to start up an access point, which serves up a captive configuration portal (thanks to [WiFiManager](https://github.com/tzapu/WiFiManager).
