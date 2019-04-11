@@ -112,6 +112,7 @@ int getTimeZoneOffset(time_t now, String latitude, String longitude, const char*
   }
   int offset = tzOffset; // default to returning previous offset value, to handle temporary failures
   WiFiClientSecure client;
+  client.setInsecure(); // disable cert/fingerprint check
   Serial.print("connecting to ");
   Serial.println(mapsHost);
   if (!client.connect(mapsHost, 443)) {
