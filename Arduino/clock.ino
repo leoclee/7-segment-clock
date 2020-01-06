@@ -13,8 +13,9 @@
 #define FASTLED_INTERRUPT_RETRY_COUNT 0 // https://github.com/FastLED/FastLED/issues/367 decided against disabling FASTLED_ALLOW_INTERRUPTS due to WDT resets
 #include <FastLED.h>
 
-#define NUM_LEDS_HOUR 15
-#define NUM_LEDS_MINUTE 31
+#define NUM_LEDS_PER_SEGMENT 1
+#define NUM_LEDS_HOUR (14*NUM_LEDS_PER_SEGMENT)+1
+#define NUM_LEDS_MINUTE (28*NUM_LEDS_PER_SEGMENT)+3
 #define DATA_PIN_HOUR D2
 #define DATA_PIN_MINUTE D6
 
@@ -386,7 +387,7 @@ void setup() {
   });
 
   server.on("/config", HTTP_GET, []() {
-    const size_t bufferSize = JSON_OBJECT_SIZE(3) + 2*JSON_OBJECT_SIZE(4); // https://arduinojson.org/v5/assistant/
+    const size_t bufferSize = JSON_OBJECT_SIZE(3) + 2 * JSON_OBJECT_SIZE(4); // https://arduinojson.org/v5/assistant/
     DynamicJsonBuffer jsonBuffer(bufferSize);
 
     JsonObject& root = jsonBuffer.createObject();
@@ -577,22 +578,26 @@ void updateLeds() {
   ledsHour[0] = currentColor; // colon
   int displayHour = isTwelveHour ? hourFormat12() : hour();
   if (displayHour >= 10 || !isTwelveHour) {
-    displayHourDigit(7, displayHour / 10);
+    displayHourDigit(7 * NUM_LEDS_PER_SEGMENT + 1, displayHour / 10);
   }
-  displayHourDigit(0, displayHour % 10);
+  displayHourDigit(1, displayHour % 10);
 
   fill_solid (ledsMinute, NUM_LEDS_MINUTE, CRGB::Black);
   ledsMinute[0] = currentColor; // colon
   int displayMinute = minute();
-  displayMinuteDigit(0, (displayMinute < 10) ? 0 : displayMinute / 10);
-  displayMinuteDigit(7, displayMinute % 10);
+  displayMinuteDigit(1, (displayMinute < 10) ? 0 : displayMinute / 10);
+  displayMinuteDigit(7 * NUM_LEDS_PER_SEGMENT + 1, displayMinute % 10);
   ledsMinute[15] = currentColor; // colon
   ledsMinute[16] = currentColor; // colon
   int displaySecond = second();
-  displayMinuteDigit(16, (displaySecond < 10) ? 0 : displaySecond / 10);
-  displayMinuteDigit(23, displaySecond % 10);
+  displayMinuteDigit((14 * NUM_LEDS_PER_SEGMENT) + 3, (displaySecond < 10) ? 0 : displaySecond / 10);
+  displayMinuteDigit((21 * NUM_LEDS_PER_SEGMENT) + 3, displaySecond % 10);
 
   FastLED.show();
+}
+
+void fillSegment(struct CRGB *leds, int offset, int segmentIndex) {
+  fill_solid(leds + offset + segmentIndex * NUM_LEDS_PER_SEGMENT, NUM_LEDS_PER_SEGMENT, currentColor);
 }
 
 /**
@@ -601,73 +606,73 @@ void updateLeds() {
 void displayHourDigit(int offset, int digit) {
   switch (digit) {
     case 0:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
-      ledsHour[offset + 7] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
+      fillSegment(ledsHour, offset, 6);
       break;
     case 1:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 5] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 4);
       break;
     case 2:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 6] = currentColor;
-      ledsHour[offset + 7] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 5);
+      fillSegment(ledsHour, offset, 6);
       break;
     case 3:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
       break;
     case 4:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
       break;
     case 5:
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
       break;
     case 6:
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
-      ledsHour[offset + 7] = currentColor;
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
+      fillSegment(ledsHour, offset, 6);
       break;
     case 7:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 5] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 4);
       break;
     case 8:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
-      ledsHour[offset + 7] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
+      fillSegment(ledsHour, offset, 6);
       break;
     case 9:
-      ledsHour[offset + 1] = currentColor;
-      ledsHour[offset + 2] = currentColor;
-      ledsHour[offset + 3] = currentColor;
-      ledsHour[offset + 4] = currentColor;
-      ledsHour[offset + 5] = currentColor;
-      ledsHour[offset + 6] = currentColor;
+      fillSegment(ledsHour, offset, 0);
+      fillSegment(ledsHour, offset, 1);
+      fillSegment(ledsHour, offset, 2);
+      fillSegment(ledsHour, offset, 3);
+      fillSegment(ledsHour, offset, 4);
+      fillSegment(ledsHour, offset, 5);
       break;
   }
 }
@@ -678,73 +683,73 @@ void displayHourDigit(int offset, int digit) {
 void displayMinuteDigit(int offset, int digit) {
   switch (digit) {
     case 0:
-      ledsMinute[offset + 1] = currentColor;
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 0);
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 1:
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 2:
-      ledsMinute[offset + 1] = currentColor;
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 0);
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 3:
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 4:
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 5:
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 5);
       break;
     case 6:
-      ledsMinute[offset + 1] = currentColor;
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
+      fillSegment(ledsMinute, offset, 0);
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 5);
       break;
     case 7:
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 8:
-      ledsMinute[offset + 1] = currentColor;
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 0);
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
     case 9:
-      ledsMinute[offset + 2] = currentColor;
-      ledsMinute[offset + 3] = currentColor;
-      ledsMinute[offset + 4] = currentColor;
-      ledsMinute[offset + 5] = currentColor;
-      ledsMinute[offset + 6] = currentColor;
-      ledsMinute[offset + 7] = currentColor;
+      fillSegment(ledsMinute, offset, 1);
+      fillSegment(ledsMinute, offset, 2);
+      fillSegment(ledsMinute, offset, 3);
+      fillSegment(ledsMinute, offset, 4);
+      fillSegment(ledsMinute, offset, 5);
+      fillSegment(ledsMinute, offset, 6);
       break;
   }
 }
