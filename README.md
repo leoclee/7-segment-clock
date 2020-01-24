@@ -17,7 +17,7 @@
 1. Install the [Arduino ESP8266 filesystem uploader plugin](https://github.com/esp8266/arduino-esp8266fs-plugin) (requires restart of IDE)
 1. Connect your D1 mini to the computer using a micro USB cable
 1. Under Tools, select "LOLIN(WEMOS) D1 R2 & mini" as the board
-1. Tools > Flash Size > 4M (1M SPIFFS)
+1. Tools > Flash Size > 4M (FS:1MB OTA:~1019KB)
 1. Open [clock.ino](Arduino/clock.ino)
 1. Sketch > Upload
 1. Upload the sketch data files (the [data](Arduino/data) directory in the sketch folder) using Tools > ESP8266 Sketch Data Upload.
