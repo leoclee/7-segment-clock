@@ -18,6 +18,7 @@
 1. Connect your D1 mini to the computer using a micro USB cable
 1. Under Tools, select "LOLIN(WEMOS) D1 R2 & mini" as the board
 1. Tools > Flash Size > 4M (FS:1MB OTA:~1019KB)
+1. Tools > Port > (pick the one that corresponds to your USB com port)
 1. Open [clock.ino](Arduino/clock.ino)
 1. Sketch > Upload
 1. Upload the sketch data files (the [data](Arduino/data) directory in the sketch folder) using Tools > ESP8266 Sketch Data Upload.
