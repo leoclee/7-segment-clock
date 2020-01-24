@@ -253,7 +253,7 @@ $('input[type=radio][name=clock]').change(function() {
 				initialLat = parseFloat(json.location.ipLatitude);
 				initialLng = parseFloat(json.location.ipLongitude);
 			}
-			if (isNaN(initialLat) && isNan(initialLng)) {
+			if (isNaN(initialLat) && isNaN(initialLng)) {
 				// 	Reykjavik, because always UTC
 				initialLat = 64.1265;
 				initialLng = -21.8174;
