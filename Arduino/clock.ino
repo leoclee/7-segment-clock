@@ -138,7 +138,8 @@ int getTimeZoneOffset(time_t now, String latitude, String longitude, const char*
       break;
     }
   }
-  String line = client.readStringUntil('}') + "}";
+  client.readStringUntil('{'); // workaround to fix https://github.com/leoclee/7-segment-clock/issues/6
+  String line = "{" + client.readStringUntil('}') + "}";
   //  Serial.println("reply was:");
   //  Serial.println("==========");
   //  Serial.println(line);
