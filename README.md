@@ -1,5 +1,8 @@
 # 7-segment-clock
 
+# Introduction
+This project was created for a 3D printable 7 segment clock. You can find more information on Thingiverse https://www.thingiverse.com/thing:2947883.
+
 # Installation
 1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software)
 1. Install the [CH340G driver](https://wiki.wemos.cc/tutorials:get_started:get_started_in_arduino)
