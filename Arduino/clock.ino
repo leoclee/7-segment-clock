@@ -588,8 +588,8 @@ void updateLeds() {
   int displayMinute = minute();
   displayMinuteDigit(1, (displayMinute < 10) ? 0 : displayMinute / 10);
   displayMinuteDigit(7 * NUM_LEDS_PER_SEGMENT + 1, displayMinute % 10);
-  ledsMinute[15] = currentColor; // colon
-  ledsMinute[16] = currentColor; // colon
+  ledsMinute[(14 * NUM_LEDS_PER_SEGMENT) + 1] = currentColor; // colon
+  ledsMinute[(14 * NUM_LEDS_PER_SEGMENT) + 2] = currentColor; // colon
   int displaySecond = second();
   displayMinuteDigit((14 * NUM_LEDS_PER_SEGMENT) + 3, (displaySecond < 10) ? 0 : displaySecond / 10);
   displayMinuteDigit((21 * NUM_LEDS_PER_SEGMENT) + 3, displaySecond % 10);
