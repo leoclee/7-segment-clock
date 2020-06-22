@@ -1,4 +1,5 @@
 {
 	"googleApiKey": "",
-	"ipstackApiKey": ""
+	"ipstackApiKey": "",
+	"tzOffset": 0
 }

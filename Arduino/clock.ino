@@ -6,8 +6,7 @@
 #include <ESP8266HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoOTA.h>
-#include <time.h>
-#include <TimeLib.h>                    // https://github.com/PaulStoffregen/Time
+#include <TimeLib.h>
 #include <ArduinoJson.h>                // https://github.com/bblanchon/ArduinoJson/
 #include <ESP8266SSDP.h>
 #define FASTLED_INTERRUPT_RETRY_COUNT 0 // https://github.com/FastLED/FastLED/issues/367 decided against disabling FASTLED_ALLOW_INTERRUPTS due to WDT resets
@@ -27,12 +26,15 @@ CHSV toColor = CHSV(128, 255, 128);
 CHSV currentColor = CHSV(0, 0, 0);
 CHSV savedColor;
 unsigned long lastColorChangeTime = 0;
-unsigned long colorSaveInterval = 15000; // number of milliseconds to wait for a color change to trigger a save
+unsigned long colorSaveInterval = 15000; // milliseconds to wait for a color change to trigger a save
 
 uint8_t lerp = 0;
 bool fading = false;
 
 int tzOffset = 0;
+
+//flag for saving data
+bool shouldSaveConfig = false;
 
 ESP8266WebServer server(80);
 
@@ -67,6 +69,10 @@ String UrlEncode(const String url) {
 }
 
 void getIPlocation() { // Using ipstack.com to map public IP's location
+  if (ipstackApiKey[0] == 0) {
+    Serial.println(F("getIPlocation: no ipstack API key specified... skipping IP based geolocation"));
+    return;
+  }
   HTTPClient http;
   String URL = "http://api.ipstack.com/check?fields=latitude,longitude&access_key=" + String(ipstackApiKey); // no host or IP specified returns client's public IP info
   String payload;
@@ -107,34 +113,40 @@ void getIPlocation() { // Using ipstack.com to map public IP's location
 
 const char* mapsHost = "maps.googleapis.com";
 int getTimeZoneOffset(time_t now, String latitude, String longitude, const char* key) { // using google maps API, return TimeZone for provided timestamp
+  if (key[0] == 0) {
+    Serial.print(F("getTimeZoneOffset: no Google Maps API key specified... using previous tzOffset value "));
+    Serial.println(tzOffset);
+    return tzOffset;
+  }
   if (latitude == "" || longitude == "") {
-    Serial.println("getTimeZoneOffset: 0 (no location)");
-    return 0;
+    Serial.print(F("getTimeZoneOffset: no location... using previous tzOffset value "));
+    Serial.println(tzOffset);
+    return tzOffset;
   }
   int offset = tzOffset; // default to returning previous offset value, to handle temporary failures
   WiFiClientSecure client;
   client.setInsecure(); // disable cert/fingerprint check
-  Serial.print("connecting to ");
+  Serial.print(F("connecting to "));
   Serial.println(mapsHost);
   if (!client.connect(mapsHost, 443)) {
-    Serial.println("connection failed");
+    Serial.println(F("connection failed"));
     return offset;
   }
 
   String url = "/maps/api/timezone/json?location="
                + UrlEncode(latitude + "," + longitude) + "&timestamp=" + String(now) + "&key=" + String(key);
-  Serial.print("requesting URL: ");
+  Serial.print(F("requesting URL: "));
   Serial.println(url);
 
   client.print(String("GET ") + url + " HTTP/1.1\r\n" +
                "Host: " + mapsHost + "\r\n" +
                "Connection: close\r\n\r\n");
 
-  Serial.println("request sent");
+  Serial.println(F("request sent"));
   while (client.connected()) {
     String line = client.readStringUntil('\n');
     if (line == "\r") {
-      Serial.println("headers received");
+      Serial.println(F("headers received"));
       break;
     }
   }
@@ -165,6 +177,12 @@ int getTimeZoneOffset(time_t now, String latitude, String longitude, const char*
     Serial.println(line);
   }
 
+  if (offset != tzOffset) {
+    shouldSaveConfig = true;
+  }
+  Serial.print(F("getTimeZoneOffset: "));
+  Serial.print(offset);
+  Serial.println("");
   return offset;
 } // getTimeZoneOffset
 
@@ -186,9 +204,6 @@ time_t getNtpTime () {
 
   return time(nullptr) + tzOffset;
 }
-
-//flag for saving data
-bool shouldSaveConfig = false;
 
 //callback notifying us of the need to save config
 void saveConfigCallback () {
@@ -242,6 +257,9 @@ void setup() {
             overrideLatitude = String(lat);
             overrideLongitude = String(lng);
           }
+
+          // time zone offset
+          tzOffset = json["tzOffset"] | 0;
 
           // color
           JsonVariant hue = json["color"]["h"];
@@ -344,14 +362,14 @@ void setup() {
       server.send(204);
       if (isTwelveHour != newIsTwelveHour) {
         isTwelveHour = newIsTwelveHour;
-        saveConfig();
+        shouldSaveConfig = true;
       }
     } else if (body == "24") {
       newIsTwelveHour = false;
       server.send(204);
       if (isTwelveHour != newIsTwelveHour) {
         isTwelveHour = newIsTwelveHour;
-        saveConfig();
+        shouldSaveConfig = true;
       }
     } else {
       server.send(400);
@@ -383,7 +401,7 @@ void setup() {
       overrideLatitude = lat;
       overrideLongitude = lng;
       refreshTimezoneOffset();
-      saveConfig();
+      shouldSaveConfig = true;
     }
   });
 
@@ -524,13 +542,16 @@ void loop() {
   }
   fadeToColor();
   saveColorChange();
+  if (shouldSaveConfig) {
+    saveConfig();
+  }
 }
 
 // throttle color change induced saving to avoid unnecessary write/erase cycles
 void saveColorChange() {
   if (toColor != savedColor && ((millis() - lastColorChangeTime) > colorSaveInterval)) {
     Serial.println("config save triggered by color change");
-    saveConfig();
+    shouldSaveConfig = true;
   }
 }
 
@@ -549,18 +570,26 @@ void refreshTimezoneOffset() {
 
 void saveConfig() {
   Serial.println("saving config");
+  shouldSaveConfig = false; // avoid saving again, even if unsuccessful
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
-  json["googleApiKey"] = googleApiKey;
-  json["ipstackApiKey"] = ipstackApiKey;
-  JsonObject& location = json.createNestedObject("location");
-  location["overrideLatitude"] = overrideLatitude;
-  location["overrideLongitude"] = overrideLongitude;
+  if (googleApiKey[0] != 0) {
+    json["googleApiKey"] = googleApiKey;
+  }
+  if (ipstackApiKey[0] != 0) {
+    json["ipstackApiKey"] = ipstackApiKey;
+  }
+  if (overrideLatitude != "" && overrideLongitude != "") {
+    JsonObject& location = json.createNestedObject("location");
+    location["overrideLatitude"] = overrideLatitude;
+    location["overrideLongitude"] = overrideLongitude;
+  }
   JsonObject& color = json.createNestedObject("color");
   color["h"] = toColor.hue * 360 / 255;
   color["s"] = toColor.saturation * 100 / 255;
   color["v"] = toColor.value * 100 / 255;
   json["clock"] = isTwelveHour ? 12 : 24;
+  json["tzOffset"] = tzOffset;
 
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile) {
@@ -568,6 +597,7 @@ void saveConfig() {
   }
 
   json.printTo(Serial);
+  Serial.println("");
   json.printTo(configFile);
   configFile.close();
 
