@@ -12,7 +12,7 @@ This project was created for a 3D printable 7 segment clock. You can find more i
     - [WiFiManager](https://github.com/tzapu/WiFiManager) (tested with version 0.15.0)
     - [ArduinoJSON](https://arduinojson.org) (version 5.x, not 6.x!) (tested with version 5.13.5)
     - [FastLED](https://github.com/FastLED/FastLED) (tested with version 3.3.3)
-    - [Time](https://playground.arduino.cc/code/time/) (tested with version 1.6.0)
+    - [Time](https://www.arduinolibraries.info/libraries/time) (tested with version 1.6.0)
 1. Install the [Arduino ESP8266 filesystem uploader plugin](https://github.com/esp8266/arduino-esp8266fs-plugin) (requires restart of IDE) (tested with version 0.5.0)
 1. Connect your D1 mini to the computer using a micro USB cable
 1. Under Tools, select "LOLIN(WEMOS) D1 R2 & mini" as the board
