@@ -1,7 +1,7 @@
 {
 	"googleApiKey": "",
 	"ipstackApiKey": "",
-	"tzOffset": 0,
+	"tzOffset": 25200,
 	"color": {
 		"h": 128,
 		"s": 255,
