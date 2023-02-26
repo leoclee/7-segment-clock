@@ -3,7 +3,7 @@
 # Introduction
 This project was created for a 3D printable 7 segment clock. You can find more information on Thingiverse https://www.thingiverse.com/thing:2947883 or Printables https://www.printables.com/model/302816-7-segment-led-clock
 
-# Setup
+# Installation
 1. Install the (Legacy) [Arduino IDE](https://www.arduino.cc/en/software#legacy-ide-18x) (tested with version 1.8.19)
 1. Install the latest [Arduino CLI](https://arduino.github.io/arduino-cli/latest/installation)
 1. Install the [CH340 driver](https://www.wemos.cc/en/latest/tutorials/d1/get_started_with_arduino_d1.html#requirements) (tested with version 3.5)
