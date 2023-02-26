@@ -73,10 +73,11 @@ void getIPlocation() { // Using ipstack.com to map public IP's location
     Serial.println(F("getIPlocation: no ipstack API key specified... skipping IP based geolocation"));
     return;
   }
+  WiFiClient client;
   HTTPClient http;
   String URL = "http://api.ipstack.com/check?fields=latitude,longitude&access_key=" + String(ipstackApiKey); // no host or IP specified returns client's public IP info
   String payload;
-  if (!http.begin(URL)) {
+  if (!http.begin(client, URL)) {
     Serial.println(F("getIPlocation: [HTTP] connect failed!"));
   } else {
     int stat = http.GET();

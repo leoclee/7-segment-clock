@@ -1,21 +1,21 @@
 # 7-segment-clock
 
 # Introduction
-This project was created for a 3D printable 7 segment clock. You can find more information on Thingiverse https://www.thingiverse.com/thing:2947883.
+This project was created for a 3D printable 7 segment clock. You can find more information on Thingiverse https://www.thingiverse.com/thing:2947883 or Printables https://www.printables.com/model/302816-7-segment-led-clock
 
 # Installation
-1. Install the [Arduino IDE](https://www.arduino.cc/en/Main/Software) (tested with version 1.8.13)
-1. Install the [CH340 driver](https://www.wemos.cc/en/latest/tutorials/d1/get_started_with_arduino_d1.html#requirements)
+1. Install the (Legacy) [Arduino IDE](https://www.arduino.cc/en/software#legacy-ide-18x) (tested with version 1.8.19)
+1. Install the [CH340 driver](https://www.wemos.cc/en/latest/tutorials/d1/get_started_with_arduino_d1.html#requirements) (tested with version 3.5)
 1. In the preferences dialog of the Arduino IDE, add http://arduino.esp8266.com/stable/package_esp8266com_index.json to the Additional Boards Manager URLs
-1. Open Boards Manager (under Tools), search for and install the latest version of esp8266 (tested with version 2.7.1).
+1. Open Boards Manager (under Tools), search for and install the latest version of esp8266 (tested with version 3.1.1).
 1. Install libraries using the Library Manager (Sketch > Include Library > Manage Libraries):
-    - [WiFiManager](https://github.com/tzapu/WiFiManager) (tested with version 0.15.0)
+    - [WiFiManager](https://github.com/tzapu/WiFiManager) (tested with version 0.16.0)
     - [ArduinoJSON](https://arduinojson.org) (version 5.x, not 6.x!) (tested with version 5.13.5)
-    - [FastLED](https://github.com/FastLED/FastLED) (tested with version 3.3.3)
-    - [Time](https://www.arduinolibraries.info/libraries/time) (tested with version 1.6.0)
+    - [FastLED](https://github.com/FastLED/FastLED) (tested with version 3.5.0)
+    - [Time](https://www.arduinolibraries.info/libraries/time) (tested with version 1.6.1)
 1. Install the [Arduino ESP8266 filesystem uploader plugin](https://github.com/esp8266/arduino-esp8266fs-plugin) (requires restart of IDE) (tested with version 0.5.0)
 1. Connect your D1 mini to the computer using a micro USB cable
-1. Under Tools, select "LOLIN(WEMOS) D1 R2 & mini" as the board
+1. Under Tools, select "LOLIN(WEMOS) D1 mini (clone)" as the board
 1. Tools > Flash Size > 4M (FS:1MB OTA:~1019KB)
 1. Tools > Port > (pick the one that corresponds to your USB com port)
 1. Open [clock.ino](Arduino/clock.ino)
