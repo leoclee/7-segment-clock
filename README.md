@@ -6,7 +6,7 @@ This project was created for a 3D printable 7 segment clock. You can find more i
 # Installation
 1. Install the (Legacy) [Arduino IDE](https://www.arduino.cc/en/software#legacy-ide-18x) (tested with version 1.8.19)
 1. Install the latest [Arduino CLI](https://arduino.github.io/arduino-cli/latest/installation)
-1. Install the [CH340 driver](https://www.wemos.cc/en/latest/tutorials/d1/get_started_with_arduino_d1.html#requirements) (tested with version 3.5)
+1. Install the [CH340 driver](https://www.wemos.cc/en/latest/ch340_driver.html) (tested with Windows version 3.5)
 1. Run the following commands to install the required libraries and ESP8266 core:
    ```
    arduino-cli core install esp8266:esp8266@3.1.1 --additional-urls http://arduino.esp8266.com/stable/package_esp8266com_index.json
